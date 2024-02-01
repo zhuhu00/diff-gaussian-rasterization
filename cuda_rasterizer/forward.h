@@ -52,14 +52,43 @@ namespace FORWARD
 		const dim3 grid, dim3 block,
 		const uint2* ranges,
 		const uint32_t* point_list,
-		int W, int H,
+		int S, int W, int H,
 		const float2* points_xy_image,
+		const float* depths,
 		const float* features,
+		const float* colors,
 		const float4* conic_opacity,
 		float* final_T,
 		uint32_t* n_contrib,
 		const float* bg_color,
-		float* out_color);
+		float* out_color,
+		float* out_opacity,
+		float* out_depth,
+		float* out_feature);
+
+	void render_xyz(
+        const dim3 grid, dim3 block,
+		const int W, const int H,
+		const float* viewmatrix,
+		const float focal_x, const float focal_y,
+		const float cx, const float cy,
+		const float tan_fovx, const float tan_fovy,
+		const float* opacities,
+		const float* depths,
+		float* normals,
+		float* surface_xyz);
+
+	void render_pseudo_normal(
+        const dim3 grid, dim3 block,
+		const int W, const int H,
+		const float* viewmatrix,
+		const float focal_x, const float focal_y,
+		const float cx, const float cy,
+		const float tan_fovx, const float tan_fovy,
+		const float* opacities,
+		const float* depths,
+		float* normals,
+		float* surface_xyz);
 }
 
 

@@ -3,7 +3,7 @@
  * GRAPHDECO research group, https://team.inria.fr/graphdeco
  * All rights reserved.
  *
- * This software is free for non-commercial, research and evaluation use 
+ * This software is free for non-commercial, research and evaluation use
  * under the terms of the LICENSE.md file.
  *
  * For inquiries contact  george.drettakis@inria.fr
@@ -19,8 +19,8 @@ namespace cg = cooperative_groups;
 // coefficients of each Gaussian to a simple RGB color.
 __device__ glm::vec3 computeColorFromSH(int idx, int deg, int max_coeffs, const glm::vec3* means, glm::vec3 campos, const float* shs, bool* clamped)
 {
-	// The implementation is loosely based on code for 
-	// "Differentiable Point-Based Radiance Fields for 
+	// The implementation is loosely based on code for
+	// "Differentiable Point-Based Radiance Fields for
 	// Efficient View Synthesis" by Zhang et al. (2022)
 	glm::vec3 pos = means[idx];
 	glm::vec3 dir = pos - campos;
@@ -74,7 +74,7 @@ __device__ glm::vec3 computeColorFromSH(int idx, int deg, int max_coeffs, const 
 __device__ float3 computeCov2D(const float3& mean, float focal_x, float focal_y, float tan_fovx, float tan_fovy, const float* cov3D, const float* viewmatrix)
 {
 	// The following models the steps outlined by equations 29
-	// and 31 in "EWA Splatting" (Zwicker et al., 2002). 
+	// and 31 in "EWA Splatting" (Zwicker et al., 2002).
 	// Additionally considers aspect / scaling of viewport.
 	// Transposes used to account for row-/column-major conventions.
 	float3 t = transformPoint4x3(mean, viewmatrix);
@@ -112,43 +112,44 @@ __device__ float3 computeCov2D(const float3& mean, float focal_x, float focal_y,
 	return { float(cov[0][0]), float(cov[0][1]), float(cov[1][1]) };
 }
 
+
 // Forward method for converting scale and rotation properties of each
 // Gaussian to a 3D covariance matrix in world space. Also takes care
 // of quaternion normalization.
 __device__ void computeCov3D(const glm::vec3 scale, float mod, const glm::vec4 rot, float* cov3D)
 {
-	// Create scaling matrix
-	glm::mat3 S = glm::mat3(1.0f);
-	S[0][0] = mod * scale.x;
-	S[1][1] = mod * scale.y;
-	S[2][2] = mod * scale.z;
+    // Create scaling matrix
+    glm::mat3 S = glm::mat3(1.0f);
+    S[0][0] = mod * scale.x;
+    S[1][1] = mod * scale.y;
+    S[2][2] = mod * scale.z;
 
-	// Normalize quaternion to get valid rotation
-	glm::vec4 q = rot;// / glm::length(rot);
-	float r = q.x;
-	float x = q.y;
-	float y = q.z;
-	float z = q.w;
+    // Normalize quaternion to get valid rotation
+    glm::vec4 q = rot;// / glm::length(rot);
+    float r = q.x;
+    float x = q.y;
+    float y = q.z;
+    float z = q.w;
 
-	// Compute rotation matrix from quaternion
-	glm::mat3 R = glm::mat3(
-		1.f - 2.f * (y * y + z * z), 2.f * (x * y - r * z), 2.f * (x * z + r * y),
-		2.f * (x * y + r * z), 1.f - 2.f * (x * x + z * z), 2.f * (y * z - r * x),
-		2.f * (x * z - r * y), 2.f * (y * z + r * x), 1.f - 2.f * (x * x + y * y)
-	);
+    // Compute rotation matrix from quaternion
+    glm::mat3 R = glm::mat3(
+            1.f - 2.f * (y * y + z * z), 2.f * (x * y - r * z), 2.f * (x * z + r * y),
+            2.f * (x * y + r * z), 1.f - 2.f * (x * x + z * z), 2.f * (y * z - r * x),
+            2.f * (x * z - r * y), 2.f * (y * z + r * x), 1.f - 2.f * (x * x + y * y)
+    );
 
-	glm::mat3 M = S * R;
+    glm::mat3 M = S * R;
 
-	// Compute 3D world covariance matrix Sigma
-	glm::mat3 Sigma = glm::transpose(M) * M;
+    // Compute 3D world covariance matrix Sigma
+    glm::mat3 Sigma = glm::transpose(M) * M;
 
-	// Covariance is symmetric, only store upper right
-	cov3D[0] = Sigma[0][0];
-	cov3D[1] = Sigma[0][1];
-	cov3D[2] = Sigma[0][2];
-	cov3D[3] = Sigma[1][1];
-	cov3D[4] = Sigma[1][2];
-	cov3D[5] = Sigma[2][2];
+    // Covariance is symmetric, only store upper right
+    cov3D[0] = Sigma[0][0];
+    cov3D[1] = Sigma[0][1];
+    cov3D[2] = Sigma[0][2];
+    cov3D[3] = Sigma[1][1];
+    cov3D[4] = Sigma[1][2];
+    cov3D[5] = Sigma[2][2];
 }
 
 // Perform initial steps for each Gaussian prior to rasterization.
@@ -200,7 +201,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	float3 p_proj = { p_hom.x * p_w, p_hom.y * p_w, p_hom.z * p_w };
 
 	// If 3D covariance matrix is precomputed, use it, otherwise compute
-	// from scaling and rotation parameters. 
+	// from scaling and rotation parameters.
 	const float* cov3D;
 	if (cov3D_precomp != nullptr)
 	{
@@ -225,7 +226,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	// Compute extent in screen space (by finding eigenvalues of
 	// 2D covariance matrix). Use extent to compute a bounding rectangle
 	// of screen-space tiles that this Gaussian overlaps with. Quit if
-	// rectangle covers 0 tiles. 
+	// rectangle covers 0 tiles.
 	float mid = 0.5f * (cov.x + cov.z);
 	float lambda1 = mid + sqrt(max(0.1f, mid * mid - det));
 	float lambda2 = mid - sqrt(max(0.1f, mid * mid - det));
@@ -249,6 +250,7 @@ __global__ void preprocessCUDA(int P, int D, int M,
 	// Store some useful helper data for the next steps.
 	depths[idx] = p_view.z;
 	radii[idx] = my_radius;
+
 	points_xy_image[idx] = point_image;
 	// Inverse 2D covariance and opacity neatly pack into one float4
 	conic_opacity[idx] = { conic.x, conic.y, conic.z, opacities[idx] };
@@ -256,21 +258,26 @@ __global__ void preprocessCUDA(int P, int D, int M,
 }
 
 // Main rasterization method. Collaboratively works on one tile per
-// block, each thread treats one pixel. Alternates between fetching 
+// block, each thread treats one pixel. Alternates between fetching
 // and rasterizing data.
 template <uint32_t CHANNELS>
 __global__ void __launch_bounds__(BLOCK_X * BLOCK_Y)
 renderCUDA(
 	const uint2* __restrict__ ranges,
 	const uint32_t* __restrict__ point_list,
-	int W, int H,
+	const int S, int W, int H,
 	const float2* __restrict__ points_xy_image,
+	const float* __restrict__ depths,
 	const float* __restrict__ features,
+	const float* __restrict__ colors,
 	const float4* __restrict__ conic_opacity,
 	float* __restrict__ final_T,
 	uint32_t* __restrict__ n_contrib,
 	const float* __restrict__ bg_color,
-	float* __restrict__ out_color)
+	float* __restrict__ out_color,
+	float* __restrict__ out_opacity,
+	float* __restrict__ out_depth,
+	float* __restrict__ out_feature)
 {
 	// Identify current tile and associated min/max pixel range.
 	auto block = cg::this_thread_block();
@@ -300,7 +307,7 @@ renderCUDA(
 	float T = 1.0f;
 	uint32_t contributor = 0;
 	uint32_t last_contributor = 0;
-	float C[CHANNELS] = { 0 };
+	float C[CHANNELS] = { 0 }, F[33] = { 0 }, Depth = 0, Opacity = 0;
 
 	// Iterate over batches until all done or range is complete
 	for (int i = 0; i < rounds; i++, toDo -= BLOCK_SIZE)
@@ -327,7 +334,7 @@ renderCUDA(
 			// Keep track of current position in range
 			contributor++;
 
-			// Resample using conic matrix (cf. "Surface 
+			// Resample using conic matrix (cf. "Surface
 			// Splatting" by Zwicker et al., 2001)
 			float2 xy = collected_xy[j];
 			float2 d = { xy.x - pixf.x, xy.y - pixf.y };
@@ -339,7 +346,7 @@ renderCUDA(
 			// Eq. (2) from 3D Gaussian splatting paper.
 			// Obtain alpha by multiplying with Gaussian opacity
 			// and its exponential falloff from mean.
-			// Avoid numerical instabilities (see paper appendix). 
+			// Avoid numerical instabilities (see paper appendix).
 			float alpha = min(0.99f, con_o.w * exp(power));
 			if (alpha < 1.0f / 255.0f)
 				continue;
@@ -350,9 +357,16 @@ renderCUDA(
 				continue;
 			}
 
+            float weight = alpha * T;
 			// Eq. (3) from 3D Gaussian splatting paper.
 			for (int ch = 0; ch < CHANNELS; ch++)
-				C[ch] += features[collected_id[j] * CHANNELS + ch] * alpha * T;
+				C[ch] += colors[collected_id[j] * CHANNELS + ch] * weight;
+
+			for (int ch = 0; ch < S; ch++)
+				F[ch] += features[collected_id[j] * S + ch] * weight;
+
+			Depth += depths[collected_id[j]] * weight;
+            Opacity += weight;
 
 			T = test_T;
 
@@ -370,33 +384,144 @@ renderCUDA(
 		n_contrib[pix_id] = last_contributor;
 		for (int ch = 0; ch < CHANNELS; ch++)
 			out_color[ch * H * W + pix_id] = C[ch] + T * bg_color[ch];
+		for (int ch = 0; ch < S; ch++)
+			out_feature[ch * H * W + pix_id] = F[ch];
+		out_depth[pix_id] = Depth;
+		out_opacity[pix_id] = Opacity;
 	}
+}
+
+
+__global__ void __launch_bounds__(BLOCK_X * BLOCK_Y)
+renderSurfaceXYZCUDA(
+    const int W, const int H,
+    const float* viewmatrix,
+    const float focal_x, const float focal_y,
+    const float cx, const float cy,
+    const float tan_fovx, const float tan_fovy,
+    const float* __restrict__ opacities,
+    const float* __restrict__ depths,
+    float* __restrict__ normals,
+    float* __restrict__ surface_xyz)
+{
+	// Identify current tile and associated min/max pixel range.
+	auto block = cg::this_thread_block();
+	uint2 pix_min = { block.group_index().x * BLOCK_X, block.group_index().y * BLOCK_Y };
+	uint2 pix_max = { min(pix_min.x + BLOCK_X, W), min(pix_min.y + BLOCK_Y , H) };
+	uint2 pix = { pix_min.x + block.thread_index().x, pix_min.y + block.thread_index().y };
+	// Check if this thread is associated with a valid pixel or outside.
+	bool inside = pix.x < W&& pix.y < H;
+    if (!inside) return;
+	uint32_t pix_id = W * pix.y + pix.x;
+    uint32_t HW = H * W;
+	float depth = depths[pix_id] / fmaxf(opacities[pix_id], 0.0000001f);
+// 	float depth = depths[pix_id];
+    surface_xyz[pix_id] =  (pix.x - cx) / focal_x * depth;
+    surface_xyz[HW + pix_id] = (pix.y - cy) / focal_y * depth;
+    surface_xyz[2 * HW + pix_id] = depth;
+}
+
+__global__ void __launch_bounds__(BLOCK_X * BLOCK_Y)
+renderPseudoNormalCUDA(
+    const int W, const int H,
+    const float* viewmatrix,
+    const float focal_x, const float focal_y,
+    const float cx, const float cy,
+    const float tan_fovx, const float tan_fovy,
+    const float* __restrict__ depths,
+    float* __restrict__ normals,
+    const float* __restrict__ surface_xyz)
+{
+	// Identify current tile and associated min/max pixel range.
+	auto block = cg::this_thread_block();
+	uint2 pix_min = { block.group_index().x * BLOCK_X, block.group_index().y * BLOCK_Y };
+	uint2 pix_max = { min(pix_min.x + BLOCK_X, W), min(pix_min.y + BLOCK_Y , H) };
+	uint2 pix = { pix_min.x + block.thread_index().x, pix_min.y + block.thread_index().y };
+	// Check if this thread is associated with a valid pixel or outside.
+	bool inside = pix.x < W&& pix.y < H;
+    if (!inside) return;
+    uint32_t HW = H * W;
+    float gradient_a[3], gradient_b[3];
+	uint32_t pix_id00 = W * (pix.y==0?0:pix.y-1) + (pix.x==0?0:pix.x-1);
+	uint32_t pix_id01 = W * (pix.y==0?0:pix.y-1) + pix.x;
+	uint32_t pix_id02 = W * (pix.y==0?0:pix.y-1) + (pix.x==W-1?W-1:pix.x+1);
+	uint32_t pix_id10 = W * pix.y + (pix.x==0?0:pix.x-1);
+	uint32_t pix_id11 = W * pix.y + pix.x;
+	uint32_t pix_id12 = W * pix.y + (pix.x==W-1?W-1:pix.x+1);
+	uint32_t pix_id20 = W * (pix.y==H-1?H-1:pix.y+1) + (pix.x==0?0:pix.x-1);
+	uint32_t pix_id21 = W * (pix.y==H-1?H-1:pix.y+1) + pix.x;
+	uint32_t pix_id22 = W * (pix.y==H-1?H-1:pix.y+1) + (pix.x==W-1?W-1:pix.x+1);
+
+    float xyz00[3] = {surface_xyz[pix_id00],surface_xyz[HW + pix_id00],surface_xyz[2 * HW + pix_id00]};
+    float xyz01[3] = {surface_xyz[pix_id01],surface_xyz[HW + pix_id01],surface_xyz[2 * HW + pix_id01]};
+    float xyz02[3] = {surface_xyz[pix_id02],surface_xyz[HW + pix_id02],surface_xyz[2 * HW + pix_id02]};
+    float xyz10[3] = {surface_xyz[pix_id10],surface_xyz[HW + pix_id10],surface_xyz[2 * HW + pix_id10]};
+    //float xyz11[3] = {surface_xyz[pix_id11],surface_xyz[HW + pix_id11],surface_xyz[2 * HW + pix_id11]};
+    float xyz12[3] = {surface_xyz[pix_id12],surface_xyz[HW + pix_id12],surface_xyz[2 * HW + pix_id12]};
+    float xyz20[3] = {surface_xyz[pix_id20],surface_xyz[HW + pix_id20],surface_xyz[2 * HW + pix_id20]};
+    float xyz21[3] = {surface_xyz[pix_id21],surface_xyz[HW + pix_id21],surface_xyz[2 * HW + pix_id21]};
+    float xyz22[3] = {surface_xyz[pix_id22],surface_xyz[HW + pix_id22],surface_xyz[2 * HW + pix_id22]};
+    for (int i=0;i<3;i++){
+        gradient_a[i] = -0.125f * xyz00[i] + 0.125f * xyz02[i] - 0.25f * xyz10[i] + 0.25f * xyz12[i] - 0.125f * xyz20[i] + 0.125f * xyz22[i];
+    }
+
+    for (int i=0;i<3;i++){
+        gradient_b[i] = -0.125f * xyz00[i] - 0.25f * xyz01[i] - 0.125f * xyz02[i] + 0.125f * xyz20[i] + 0.25f * xyz21[i] + 0.125f * xyz22[i];
+    }
+    float normal[3] = {
+        gradient_a[1] * gradient_b[2] - gradient_a[2] * gradient_b[1],
+        -gradient_a[0] * gradient_b[2] + gradient_a[2] * gradient_b[0],
+        gradient_a[0] * gradient_b[1] - gradient_a[1] * gradient_b[0]
+    };
+    float norm = sqrtf(normal[0]*normal[0]+normal[1]*normal[1]+normal[2]*normal[2]);
+    if (norm <= 0.00000f){
+        return;
+    }
+
+    normal[0] = -normal[0] / norm;
+    normal[1] = -normal[1] / norm;
+    normal[2] = -normal[2] / norm;
+
+    normals[pix_id11] = viewmatrix[0] * normal[0] + viewmatrix[1] * normal[1] + viewmatrix[2] * normal[2];
+    normals[HW + pix_id11] = viewmatrix[4] * normal[0] + viewmatrix[5] * normal[1] + viewmatrix[6] * normal[2];
+    normals[2 * HW + pix_id11] = viewmatrix[8] * normal[0] + viewmatrix[9] * normal[1] + viewmatrix[10] * normal[2];
 }
 
 void FORWARD::render(
 	const dim3 grid, dim3 block,
 	const uint2* ranges,
 	const uint32_t* point_list,
-	int W, int H,
+	const int S, int W, int H,
 	const float2* means2D,
+	const float* depths,
+	const float* features,
 	const float* colors,
 	const float4* conic_opacity,
 	float* final_T,
 	uint32_t* n_contrib,
 	const float* bg_color,
-	float* out_color)
+	float* out_color,
+	float* out_opacity,
+	float* out_depth,
+	float* out_feature
+	)
 {
 	renderCUDA<NUM_CHANNELS> << <grid, block >> > (
 		ranges,
 		point_list,
-		W, H,
+		S, W, H,
 		means2D,
+		depths,
+		features,
 		colors,
 		conic_opacity,
 		final_T,
 		n_contrib,
 		bg_color,
-		out_color);
+		out_color,
+		out_opacity,
+		out_depth,
+		out_feature);
 }
 
 void FORWARD::preprocess(int P, int D, int M,
@@ -425,7 +550,7 @@ void FORWARD::preprocess(int P, int D, int M,
 	uint32_t* tiles_touched,
 	bool prefiltered)
 {
-	preprocessCUDA<NUM_CHANNELS> << <(P + 255) / 256, 256 >> > (
+	preprocessCUDA<NUM_CHANNELS> <<<(P + 255) / 256, 256 >> > (
 		P, D, M,
 		means3D,
 		scales,
@@ -436,7 +561,7 @@ void FORWARD::preprocess(int P, int D, int M,
 		clamped,
 		cov3D_precomp,
 		colors_precomp,
-		viewmatrix, 
+		viewmatrix,
 		projmatrix,
 		cam_pos,
 		W, H,
@@ -452,4 +577,51 @@ void FORWARD::preprocess(int P, int D, int M,
 		tiles_touched,
 		prefiltered
 		);
+}
+
+void FORWARD::render_xyz(
+	const dim3 grid, dim3 block,
+	const int W, const int H,
+    const float* viewmatrix,
+    const float focal_x, const float focal_y,
+    const float cx, const float cy,
+    const float tan_fovx, const float tan_fovy,
+    const float* opacities,
+    const float* depths,
+    float* normals,
+    float* surface_xyz)
+{
+	renderSurfaceXYZCUDA << <grid, block >> > (
+		W, H,
+        viewmatrix,
+        focal_x, focal_y,
+        cx, cy,
+        tan_fovx, tan_fovy,
+        opacities,
+        depths,
+        normals,
+        surface_xyz);
+}
+
+void FORWARD::render_pseudo_normal(
+	const dim3 grid, dim3 block,
+	const int W, const int H,
+    const float* viewmatrix,
+    const float focal_x, const float focal_y,
+    const float cx, const float cy,
+    const float tan_fovx, const float tan_fovy,
+    const float* opacities,
+    const float* depths,
+    float* normals,
+    float* surface_xyz)
+{
+    renderPseudoNormalCUDA << <grid, block >> > (
+		W, H,
+        viewmatrix,
+        focal_x, focal_y,
+        cx, cy,
+        tan_fovx, tan_fovy,
+        depths,
+        normals,
+        surface_xyz);
 }

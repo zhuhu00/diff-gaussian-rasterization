@@ -35,6 +35,7 @@ namespace CudaRasterizer
 		int* internal_radii;
 		float2* means2D;
 		float* cov3D;
+		float* cov3DInverse;
 		float4* conic_opacity;
 		float* rgb;
 		uint32_t* point_offsets;
@@ -48,7 +49,6 @@ namespace CudaRasterizer
 		uint2* ranges;
 		uint32_t* n_contrib;
 		float* accum_alpha;
-
 		static ImageState fromChunk(char*& chunk, size_t N);
 	};
 
